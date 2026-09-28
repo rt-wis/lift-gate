@@ -1,0 +1,1301 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Lift Gate: a rigging safety platformer. Nine lift gates, one rigging rule each.">
+<title>Lift Gate</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;700&family=Saira+Stencil+One&display=swap">
+<style>
+  :root {
+    --bg: #0f141a;
+    --panel: #18202a;
+    --panel-2: #1f2934;
+    --line: #2f3b48;
+    --ink: #e8ecef;
+    --muted: #93a1ae;
+    --safety: #f5b800;
+    --hivis: #ff7a1a;
+    --ok: #43b86b;
+    --bad: #e5534b;
+    --display: "Saira Stencil One", Impact, "Arial Black", sans-serif;
+    --body: "Chakra Petch", ui-sans-serif, system-ui, sans-serif;
+    color-scheme: dark;
+  }
+  [hidden] { display: none !important; }
+  :root { padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+  html { height: 100%; box-sizing: border-box; background: var(--bg); }
+  *, *::before, *::after { box-sizing: inherit; }
+  body {
+    height: 100%;
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--body);
+    font-size: 15px;
+    line-height: 1.4;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding-block: 10px;
+    padding-inline: 16px;
+    overflow: hidden;
+  }
+  header { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .brand { font-family: var(--display); font-size: 22px; color: var(--safety); letter-spacing: .04em; line-height: 1; }
+  .spacer { flex: 1; }
+  .chip {
+    font-size: 12px; text-transform: uppercase; letter-spacing: .08em;
+    padding: 4px 10px; border: 1px solid var(--line); border-radius: 3px; color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+  .chip b { color: var(--ink); font-weight: 700; }
+  button.chip { background: transparent; font-family: var(--body); cursor: pointer; }
+  button.chip:hover { border-color: var(--safety); }
+  button.chip:focus-visible { outline: 2px solid var(--hivis); outline-offset: 2px; }
+  button.chip[aria-pressed="true"] b { color: var(--bad); }
+  .rotate { display: none; font-size: 12px; color: var(--muted); }
+  @media (orientation: portrait) { body.touch .rotate { display: block; } }
+
+  #wrap { position: relative; flex: 1; min-height: 0; background: #0b1016; border-radius: 4px; overflow: hidden; }
+  #game { position: absolute; inset: 0; }
+  #game canvas { touch-action: none; display: block; }
+
+  /* Touch controls */
+  #touch { display: none; position: absolute; inset: auto 0 0 0; padding: 10px 12px calc(10px + env(safe-area-inset-bottom, 0px)); justify-content: space-between; align-items: end; pointer-events: none; z-index: 5; }
+  body.touch #touch { display: flex; }
+  #touch .pad { display: flex; gap: 10px; pointer-events: auto; }
+  #touch button {
+    width: 64px; height: 64px; border-radius: 50%;
+    border: 2px solid rgba(245, 184, 0, .7); background: rgba(15, 20, 26, .55);
+    color: var(--safety); font: 700 13px var(--body); letter-spacing: .06em;
+    touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
+    display: grid; place-items: center;
+  }
+  #touch button.on { background: rgba(245, 184, 0, .35); }
+  #touch button.jump { width: 76px; height: 76px; }
+
+  /* Overlays */
+  .overlay { position: absolute; inset: 0; z-index: 10; display: flex; overflow: auto; padding: 12px; background: rgba(8, 11, 15, .74); }
+  .card {
+    margin: auto; width: 100%; max-width: 760px;
+    background: var(--panel); border: 1px solid var(--line); border-radius: 4px;
+    padding: 0 20px 18px; position: relative;
+  }
+  .card::before {
+    content: ""; display: block; height: 8px; margin: 0 -20px 16px;
+    background: repeating-linear-gradient(-45deg, var(--safety) 0 12px, #14181d 12px 24px);
+    border-radius: 3px 3px 0 0;
+  }
+  .eyebrow { font-size: 12px; text-transform: uppercase; letter-spacing: .12em; color: var(--safety); font-weight: 700; }
+  .eyebrow.bad { color: var(--bad); }
+  .eyebrow.ok { color: var(--ok); }
+  h1, h2 { font-family: var(--display); font-weight: 400; margin: 4px 0 10px; line-height: 1.05; text-wrap: balance; letter-spacing: .02em; }
+  h1 { font-size: clamp(40px, 8vw, 72px); color: var(--safety); }
+  h2 { font-size: clamp(24px, 4vw, 34px); }
+  p { margin: 0 0 10px; max-width: 62ch; }
+  .muted { color: var(--muted); }
+  .k { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); }
+
+  .loadrow { display: grid; grid-template-columns: 1.2fr .6fr 2fr; gap: 12px; padding: 10px 12px; background: var(--panel-2); border-radius: 3px; margin-bottom: 10px; }
+  .loadrow b { font-weight: 700; }
+  .loadrow .wt { font-family: var(--display); font-size: 22px; color: var(--safety); font-weight: 400; font-variant-numeric: tabular-nums; }
+  @media (max-width: 560px) { .loadrow { grid-template-columns: 1fr 1fr; } .loadrow .rig { grid-column: 1 / -1; } }
+
+  .rule { border-left: 3px solid var(--safety); padding-left: 10px; }
+  .rule span { font-weight: 700; color: var(--safety); text-transform: uppercase; font-size: 12px; letter-spacing: .1em; margin-right: 6px; }
+  .factors { width: 100%; max-width: 420px; border-collapse: collapse; font-size: 13px; margin: 0 0 12px; font-variant-numeric: tabular-nums; }
+  .factors th, .factors td { border: 1px solid var(--line); padding: 4px 8px; text-align: center; }
+  .factors th { color: var(--muted); font-weight: 500; text-align: left; }
+
+  form { display: flex; flex-direction: column; gap: 10px; }
+  fieldset { border: 0; margin: 0; padding: 0; }
+  legend { font-size: 12px; text-transform: uppercase; letter-spacing: .12em; color: var(--muted); font-weight: 700; margin-bottom: 6px; padding: 0; }
+  .opts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+  .opt {
+    position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
+    padding: 9px 10px; border: 2px solid var(--line); border-radius: 4px; background: var(--panel-2);
+    cursor: pointer; min-height: 58px; transition: border-color .12s, background .12s;
+  }
+  .opt:hover { border-color: #4a5a6b; }
+  .opt input { position: absolute; opacity: 0; pointer-events: none; }
+  .opt:has(input:checked) { border-color: var(--safety); background: #2a2a1f; }
+  .opt:has(input:focus-visible) { outline: 2px solid var(--hivis); outline-offset: 2px; }
+  .ol { font-weight: 700; font-size: 14px; }
+  .os { font-size: 12.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .sw { display: inline-block; width: 26px; height: 6px; border-radius: 3px; margin-bottom: 4px; }
+  .opt svg { width: 64px; height: 42px; color: var(--ink); margin-bottom: 2px; }
+
+  .btn {
+    font: 700 15px var(--body); letter-spacing: .06em; text-transform: uppercase;
+    padding: 12px 20px; border-radius: 3px; border: 2px solid var(--safety); cursor: pointer;
+    background: transparent; color: var(--safety); align-self: flex-start;
+  }
+  .btn.primary { background: var(--safety); color: #14181d; }
+  .btn:disabled { opacity: .4; cursor: not-allowed; }
+  .btn:focus-visible { outline: 2px solid var(--hivis); outline-offset: 3px; }
+
+  .why { font-size: 17px; }
+  .correct { background: var(--panel-2); border-radius: 3px; padding: 10px 12px; margin-bottom: 14px; }
+  .correct ul { margin: 4px 0 0; padding-left: 18px; }
+  .keys { display: flex; flex-wrap: wrap; gap: 16px; margin: 6px 0 16px; font-size: 13px; color: var(--muted); }
+  kbd { font: 700 12px var(--body); border: 1px solid var(--line); border-bottom-width: 3px; border-radius: 3px; padding: 1px 6px; color: var(--ink); background: var(--panel-2); }
+
+  .cert { text-align: left; }
+  .cert .seal {
+    width: 88px; height: 88px; border-radius: 50%; border: 3px dashed var(--safety);
+    display: grid; place-items: center; font-family: var(--display); color: var(--safety); font-size: 26px;
+    float: right; margin: 0 0 8px 12px; transform: rotate(-8deg);
+  }
+  .rules { list-style: none; padding: 0; margin: 0 0 14px; display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 6px 16px; }
+  .rules li { display: flex; gap: 8px; }
+  .rules .tick { color: var(--ok); font-weight: 700; }
+  .rules .miss { color: var(--muted); font-weight: 700; }
+  .score-big { font-family: var(--display); font-size: 40px; color: var(--ink); font-variant-numeric: tabular-nums; }
+
+  @media (max-width: 480px), (max-height: 420px) {
+    .card { padding: 0 14px 14px; }
+    .card::before { margin: 0 -14px 12px; }
+    .opt { padding: 7px 8px; min-height: 50px; }
+    .ol { font-size: 13px; }
+    .os { font-size: 11.5px; }
+    .opt svg { width: 52px; height: 34px; }
+  }
+  @media (prefers-reduced-motion: reduce) { .opt { transition: none; } }
+</style>
+</head>
+<body>
+
+
+<header>
+  <div class="brand">LIFT GATE</div>
+  <div class="spacer"></div>
+  <div class="chip" id="hudLevel">Level <b>1</b>/9</div>
+  <div class="chip">Score <b id="hudScore">0</b></div>
+  <button class="chip mute" id="muteBtn" aria-pressed="false" title="Mute or unmute (M)">Sound <b>on</b></button>
+</header>
+<div class="rotate">Turn your phone sideways for a bigger view.</div>
+
+<div id="wrap">
+  <div id="game"></div>
+
+  <div id="touch" aria-hidden="true">
+    <div class="pad">
+      <button id="tLeft" aria-label="Move left"><svg width="22" height="22" viewBox="0 0 22 22"><path d="M15 3 5 11l10 8z" fill="currentColor"/></svg></button>
+      <button id="tRight" aria-label="Move right"><svg width="22" height="22" viewBox="0 0 22 22"><path d="M7 3l10 8-10 8z" fill="currentColor"/></svg></button>
+    </div>
+    <div class="pad">
+      <button id="tJump" class="jump" aria-label="Jump">JUMP</button>
+    </div>
+  </div>
+
+  <div class="overlay" id="panel" hidden></div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/phaser/3.80.1/phaser.min.js"></script>
+<script>
+/* =========================================================
+   LIFT GATE — a rigging platformer.
+   Structure (for a later React + TS port):
+   1. LEVELS  — pure data (quiz, layout)
+   2. S       — game state
+   3. UI      — DOM overlays (quiz, fail, screens, HUD)
+   4. Textures — shape art made at runtime
+   5. YardScene — Phaser scene (movement, gate, crane)
+   ========================================================= */
+
+const GY = 480;          // ground top (world px)
+const SL = 56;           // sling length (visual)
+
+/* ---------- 1. LEVEL DATA ---------- */
+const LEVELS = [
+  {
+    id: 1, short: 'WLL', title: 'Working Load Limit',
+    rule: 'Every sling and shackle must have a WLL that is more than the load weight.',
+    load: { name: 'Steel beam bundle', weight: '3.5 t', key: 'load1', w: 170, h: 72, legs: 1, sling: 0xd23a3a,
+            rig: 'One vertical sling to the centre lifting point.' },
+    gateX: 1900,
+    ground: [[0, 700], [800, 1350], [1460, Infinity]],
+    blocks: [
+      { t: 'c', x: 380, h: 1, c: 0 }, { t: 'b', x: 620, y: 372 },
+      { t: 'c', x: 1000, h: 1, c: 1 }, { t: 'c', x: 1128, h: 2, c: 2 }, { t: 'b', x: 1330, y: 360 },
+    ],
+    groups: [
+      { id: 'sling', title: 'Sling', correct: 's5', options: [
+        { id: 's2', label: 'Round sling', sub: 'WLL 2 t · green', swatch: '#3aa655', why: 'A 2 t sling is weaker than the 3.5 t load.' },
+        { id: 's3', label: 'Round sling', sub: 'WLL 3 t · yellow', swatch: '#f2c230', why: 'A 3 t sling is weaker than the 3.5 t load.' },
+        { id: 's5', label: 'Round sling', sub: 'WLL 5 t · red', swatch: '#d23a3a' },
+      ]},
+      { id: 'shackle', title: 'Shackle', correct: 'k4', options: [
+        { id: 'k2', label: 'Bow shackle', sub: 'WLL 2 t', why: 'A 2 t shackle is weaker than the 3.5 t load.' },
+        { id: 'k3', label: 'Bow shackle', sub: 'WLL 3.25 t', why: 'A 3.25 t shackle is weaker than the 3.5 t load.' },
+        { id: 'k4', label: 'Bow shackle', sub: 'WLL 4.75 t' },
+      ]},
+      { id: 'angle', title: 'Sling angle', correct: 'a0', options: [
+        { id: 'a0', label: 'Vertical', sub: '0° from vertical', diagram: { legs: 1, deg: 0 } },
+        { id: 'a45', label: 'Angled', sub: '45° from vertical', diagram: { legs: 1, deg: 45 }, why: 'A single sling at an angle pulls sideways, so the load swings when it lifts.' },
+        { id: 'a80', label: 'Near flat', sub: '80° from vertical', diagram: { legs: 1, deg: 80 }, why: 'A near-flat single sling drags the load sideways, so the load swings when it lifts.' },
+      ]},
+    ],
+  },
+  {
+    id: 2, short: 'Angle', title: 'Sling Angle',
+    rule: 'A wide angle increases the tension in each leg. Keep the included angle at 90° or less where you can, and never more than 120°.',
+    factors: true,
+    load: { name: 'Pump skid', weight: '4 t', key: 'load2', w: 150, h: 96, legs: 2, sling: 0xf2c230,
+            rig: 'Two-leg sling to two lifting lugs. Leg load = (load ÷ 2) × angle factor.' },
+    gateX: 2150,
+    ground: [[0, 600], [710, 1150], [1270, 1700], [1820, Infinity]],
+    blocks: [
+      { t: 'c', x: 300, h: 1, c: 1 }, { t: 'c', x: 428, h: 2, c: 0 }, { t: 'b', x: 560, y: 360 },
+      { t: 'c', x: 880, h: 1, c: 3 }, { t: 'b', x: 1120, y: 370 },
+      { t: 'c', x: 1400, h: 1, c: 2 }, { t: 'c', x: 1528, h: 2, c: 1 }, { t: 'b', x: 1660, y: 330 },
+    ],
+    groups: [
+      { id: 'angle', title: 'Included sling angle', correct: 'i60', options: [
+        { id: 'i60', label: '60° included', sub: '30° each side', diagram: { legs: 2, deg: 30 } },
+        { id: 'i120', label: '120° included', sub: '60° each side', diagram: { legs: 2, deg: 60 }, why: 'At 120° each leg carries the full 4 t, so the tension doubles.' },
+        { id: 'i150', label: '150° included', sub: '75° each side', diagram: { legs: 2, deg: 75 }, why: 'At 150° each leg carries about 7.7 t, which is almost double the load.' },
+      ]},
+      { id: 'sling', title: 'Sling (each leg)', correct: 's3', options: [
+        { id: 's1', label: 'Round sling', sub: 'WLL 1 t · violet', swatch: '#8a5cc2', why: 'At 60° each leg carries about 2.3 t, which is more than a 1 t sling can take.' },
+        { id: 's2', label: 'Round sling', sub: 'WLL 2 t · green', swatch: '#3aa655', why: 'At 60° each leg carries about 2.3 t, which is more than a 2 t sling can take.' },
+        { id: 's3', label: 'Round sling', sub: 'WLL 3 t · yellow', swatch: '#f2c230' },
+      ]},
+      { id: 'shackle', title: 'Shackle (each leg)', correct: 'k3', options: [
+        { id: 'k1', label: 'Bow shackle', sub: 'WLL 1.5 t', why: 'At 60° each leg carries about 2.3 t, which is more than a 1.5 t shackle can take.' },
+        { id: 'k2', label: 'Bow shackle', sub: 'WLL 2 t', why: 'At 60° each leg carries about 2.3 t, which is more than a 2 t shackle can take.' },
+        { id: 'k3', label: 'Bow shackle', sub: 'WLL 3.25 t' },
+      ]},
+    ],
+  },
+  {
+    id: 3, short: 'Tag lines', title: 'Tag Lines',
+    rule: 'Control load rotation with a tag line. Never touch a suspended load, and never wrap the line around your body.',
+    load: { name: 'Pipe spool, 6 m', weight: '3 t', key: 'load3', w: 220, h: 64, legs: 2, sling: 0x3aa655,
+            rig: 'Two-leg sling at 60° included. Each leg carries about 1.7 t.' },
+    gateX: 2300,
+    ground: [[0, 560], [680, 1000], [1120, 1500], [1630, Infinity]],
+    blocks: [
+      { t: 'c', x: 250, h: 1, c: 2 }, { t: 'c', x: 378, h: 2, c: 3 }, { t: 'b', x: 520, y: 350 },
+      { t: 'c', x: 760, h: 1, c: 0 }, { t: 'b', x: 960, y: 380 }, { t: 'b', x: 1250, y: 330 },
+      { t: 'c', x: 1370, h: 1, c: 1 }, { t: 'b', x: 1480, y: 350 },
+      { t: 'c', x: 1720, h: 1, c: 3 }, { t: 'c', x: 1848, h: 2, c: 2 },
+    ],
+    groups: [
+      { id: 'tag', title: 'Load control', correct: 't1', options: [
+        { id: 't1', label: 'Tag line on one end', sub: 'Held from outside the load path' },
+        { id: 't2', label: 'Hands on the load', sub: 'Push it to steer', why: 'Never touch a suspended load. Stay clear and steer it with a tag line.' },
+        { id: 't3', label: 'Tag line round wrist', sub: 'For a better grip', why: 'Never wrap a tag line around your hand or body, because the load can pull you in.' },
+      ]},
+      { id: 'sling', title: 'Sling (each leg)', correct: 's2', options: [
+        { id: 's2', label: 'Round sling', sub: 'WLL 2 t · green', swatch: '#3aa655' },
+        { id: 's1', label: 'Round sling', sub: 'WLL 1 t · violet', swatch: '#8a5cc2', why: 'Each leg carries about 1.7 t, which is more than a 1 t sling can take.' },
+        { id: 'sx', label: 'Round sling, 2 t', sub: 'Cut in the cover', swatch: '#3aa655', why: 'A sling with a cut cover is damaged, so remove it from service.' },
+      ]},
+      { id: 'shackle', title: 'Shackle (each leg)', correct: 'k2', options: [
+        { id: 'k1', label: 'Bow shackle', sub: 'WLL 1 t', why: 'Each leg carries about 1.7 t, which is more than a 1 t shackle can take.' },
+        { id: 'kx', label: 'Bow shackle', sub: 'No WLL marking', why: 'Do not use a shackle that has no WLL marking.' },
+        { id: 'k2', label: 'Bow shackle', sub: 'WLL 2 t' },
+      ]},
+    ],
+  },
+  {
+    id: 4, short: 'Choke', title: 'Choke Hitch',
+    rule: 'A choke hitch reduces the sling WLL to about 80% of its vertical WLL. Use a choke to grip a loose bundle.',
+    load: { name: 'Loose pipe bundle', weight: '1.8 t', key: 'load4', w: 180, h: 60, legs: 2, sling: 0x3aa655,
+            rig: 'Two-leg sling at 60° included, each leg choke-hitched. Each leg carries about 1.0 t.' },
+    gateX: 2200,
+    ground: [[0, 520], [630, 1050], [1160, 1560], [1680, Infinity]],
+    blocks: [
+      { t: 'c', x: 300, h: 1, c: 3 }, { t: 'b', x: 470, y: 370 },
+      { t: 'c', x: 760, h: 1, c: 1 }, { t: 'c', x: 888, h: 2, c: 0 }, { t: 'b', x: 1030, y: 330 },
+      { t: 'c', x: 1300, h: 1, c: 2 }, { t: 'b', x: 1500, y: 360 }, { t: 'c', x: 1720, h: 1, c: 0 },
+    ],
+    groups: [
+      { id: 'hitch', title: 'Hitch for a loose bundle', correct: 'h1', options: [
+        { id: 'h1', label: 'Choke hitch', sub: 'Grips the bundle tight' },
+        { id: 'h2', label: 'Basket hitch', sub: 'Sling cradles the bundle', why: 'A basket hitch does not grip a loose bundle, so pipes can slide out.' },
+        { id: 'h3', label: 'Sling on one pipe', sub: 'Through the bore', why: 'A sling through one pipe lifts only that pipe, and the others fall.' },
+      ]},
+      { id: 'cap', title: 'WLL in a choke hitch', correct: 'c80', options: [
+        { id: 'c100', label: 'Same as vertical', sub: '100% of WLL', why: 'A choke hitch bends the sling tight around the load, so it reduces the WLL.' },
+        { id: 'c80', label: 'Reduced', sub: 'About 80% of WLL' },
+        { id: 'c200', label: 'Doubled', sub: '200% of WLL', why: 'Double capacity is for a vertical basket hitch, not a choke hitch.' },
+      ]},
+      { id: 'sling', title: 'Sling (each leg)', correct: 's2', options: [
+        { id: 's1', label: 'Round sling', sub: 'WLL 1 t · violet', swatch: '#8a5cc2', why: 'In a choke, a 1 t sling is rated about 0.8 t, which is less than the 1.0 t in each leg.' },
+        { id: 's2', label: 'Round sling', sub: 'WLL 2 t · green', swatch: '#3aa655' },
+        { id: 'sk', label: 'Round sling, 2 t', sub: 'Knotted to shorten it', swatch: '#3aa655', why: 'Never tie a knot in a sling to shorten it, because the knot cuts its capacity.' },
+      ]},
+    ],
+  },
+  {
+    id: 5, short: 'Edges', title: 'Edge Protection',
+    rule: 'Protect slings from sharp edges with sleeves or corner protectors. A sharp edge can cut a sling at a load far below its WLL.',
+    load: { name: 'Steel box section', weight: '2 t', key: 'load5', w: 150, h: 70, legs: 2, sling: 0x3aa655, sleeves: true,
+            rig: 'Two-leg sling at 60° included, over sharp corners. Each leg carries about 1.15 t.' },
+    gateX: 2250,
+    ground: [[0, 640], [750, 1100], [1210, 1320], [1430, 1700], [1810, Infinity]],
+    blocks: [
+      { t: 'c', x: 350, h: 1, c: 2 }, { t: 'c', x: 478, h: 1, c: 1 }, { t: 'b', x: 650, y: 380 },
+      { t: 'c', x: 842, h: 1, c: 3 }, { t: 'c', x: 970, h: 2, c: 0 },
+      { t: 'b', x: 1480, y: 350 }, { t: 'c', x: 1560, h: 1, c: 1 }, { t: 'b', x: 1690, y: 360 },
+    ],
+    groups: [
+      { id: 'edge', title: 'Sharp corners', correct: 'e1', options: [
+        { id: 'e1', label: 'Protection sleeves', sub: 'Rated protector on each edge' },
+        { id: 'e2', label: 'No protection', sub: 'The sling is strong enough', why: 'A sharp edge can cut a round sling at a load far below its WLL.' },
+        { id: 'e3', label: 'Folded cardboard', sub: 'Over each edge', why: 'Cardboard tears and slides off, so use a purpose-made sleeve or corner protector.' },
+      ]},
+      { id: 'sling', title: 'Sling (each leg)', correct: 's2', options: [
+        { id: 's1', label: 'Round sling', sub: 'WLL 1 t · violet', swatch: '#8a5cc2', why: 'Each leg carries about 1.15 t, which is more than a 1 t sling can take.' },
+        { id: 'st', label: 'Round sling, 2 t', sub: 'Twisted along its length', swatch: '#3aa655', why: 'A twisted sling loses capacity, so lay each sling flat.' },
+        { id: 's2', label: 'Round sling', sub: 'WLL 2 t · green', swatch: '#3aa655' },
+      ]},
+      { id: 'shackle', title: 'Shackle (each leg)', correct: 'k2', options: [
+        { id: 'k0', label: 'Bow shackle', sub: 'WLL 0.75 t', why: 'Each leg carries about 1.15 t, which is more than a 0.75 t shackle can take.' },
+        { id: 'k1', label: 'Bow shackle', sub: 'WLL 1 t', why: 'Each leg carries about 1.15 t, which is more than a 1 t shackle can take.' },
+        { id: 'k2', label: 'Bow shackle', sub: 'WLL 2 t' },
+      ]},
+    ],
+  },
+  {
+    id: 6, short: 'CoG', title: 'Centre of Gravity',
+    rule: 'Put the hook directly over the centre of gravity. Do a trial lift a few centimetres off the ground first.',
+    load: { name: 'Generator set', weight: '2.4 t', key: 'load6', w: 170, h: 90, legs: 2, sling: 0x3aa655, cog: 30,
+            rig: 'Two-leg sling. The engine end is heavy. The rig chart says the heavy-end leg carries about 1.6 t.' },
+    gateX: 2250,
+    ground: [[0, 600], [700, 900], [1010, 1400], [1520, Infinity]],
+    blocks: [
+      { t: 'c', x: 300, h: 1, c: 1 }, { t: 'b', x: 560, y: 380 }, { t: 'c', x: 770, h: 1, c: 0 }, { t: 'b', x: 900, y: 340 },
+      { t: 'c', x: 1100, h: 1, c: 2 }, { t: 'c', x: 1228, h: 2, c: 3 }, { t: 'b', x: 1380, y: 330 },
+      { t: 'c', x: 1650, h: 1, c: 1 }, { t: 'b', x: 1800, y: 360 },
+    ],
+    groups: [
+      { id: 'hook', title: 'Hook position', correct: 'p1', options: [
+        { id: 'p2', label: 'Over the middle', sub: 'Centre of the skid', why: 'The centre of gravity is not in the middle, so the load tilts to the heavy end.' },
+        { id: 'p1', label: 'Over the CoG mark', sub: 'Toward the engine end' },
+        { id: 'p3', label: 'Over the light end', sub: 'Radiator end', why: 'The load tilts hard to the heavy end when it leaves the ground.' },
+      ]},
+      { id: 'trial', title: 'First lift', correct: 't1', options: [
+        { id: 't1', label: 'Trial lift', sub: 'A few cm up, stop, check' },
+        { id: 't2', label: 'Straight to height', sub: 'Save time', why: 'Always do a trial lift a few centimetres off the ground to check the balance first.' },
+        { id: 't3', label: 'Lift fast', sub: 'Beat the tilt', why: 'A fast lift makes the load swing and shock-loads the rig.' },
+      ]},
+      { id: 'sling', title: 'Sling (each leg)', correct: 's2', options: [
+        { id: 's1', label: 'Round sling', sub: 'WLL 1 t · violet', swatch: '#8a5cc2', why: 'The heavy-end leg carries about 1.6 t, which is more than a 1 t sling can take.' },
+        { id: 's2', label: 'Round sling', sub: 'WLL 2 t · green', swatch: '#3aa655' },
+        { id: 'sl', label: 'Round sling, 2 t', sub: 'Label not readable', swatch: '#3aa655', why: 'Do not use a sling that has no readable WLL label.' },
+      ]},
+    ],
+  },
+  {
+    id: 7, short: 'Inspect', title: 'Pre-use Inspection',
+    rule: 'Inspect all gear before each lift. Remove damaged or unmarked gear from service.',
+    load: { name: 'Concrete block', weight: '2 t', key: 'load7', w: 130, h: 80, legs: 1, sling: 0x9aa3ad,
+            rig: 'One vertical chain sling to the cast-in lifting anchor. The gear is rated for this load. Check its condition.' },
+    gateX: 2300,
+    ground: [[0, 500], [610, 980], [1090, 1200], [1300, 1650], [1760, Infinity]],
+    blocks: [
+      { t: 'c', x: 250, h: 1, c: 1 }, { t: 'b', x: 450, y: 370 },
+      { t: 'c', x: 700, h: 1, c: 2 }, { t: 'c', x: 828, h: 2, c: 3 }, { t: 'b', x: 960, y: 340 },
+      { t: 'b', x: 1170, y: 370 }, { t: 'c', x: 1400, h: 1, c: 0 }, { t: 'b', x: 1600, y: 350 }, { t: 'c', x: 1850, h: 1, c: 2 },
+    ],
+    groups: [
+      { id: 'sling', title: 'Chain sling', correct: 'c1', options: [
+        { id: 'c2', label: 'Stretched link', sub: 'Tag present', why: 'A stretched link shows an overload, so remove the sling from service.' },
+        { id: 'c3', label: 'No ID tag', sub: 'Links look fine', why: 'Do not use a sling that has no ID tag or WLL marking.' },
+        { id: 'c1', label: 'Tag present', sub: 'No damage found' },
+      ]},
+      { id: 'hook', title: 'Sling hook', correct: 'h1', options: [
+        { id: 'h1', label: 'Latch closes', sub: 'Throat not opened' },
+        { id: 'h2', label: 'Latch missing', sub: 'Throat not opened', why: 'A hook without a working safety latch can let the load slip out.' },
+        { id: 'h3', label: 'Throat opened out', sub: 'Latch does not reach', why: 'An opened hook throat shows an overload, so remove the hook from service.' },
+      ]},
+      { id: 'shackle', title: 'Shackle', correct: 'k1', options: [
+        { id: 'k2', label: 'Bent body', sub: 'Pin still fits', why: 'A bent shackle has been overloaded, so remove it from service.' },
+        { id: 'k1', label: 'Straight, marked', sub: 'Correct pin fitted' },
+        { id: 'k3', label: 'Pin swapped', sub: 'For a hardware bolt', why: 'Never replace a shackle pin with a bolt. Use the correct pin for that shackle.' },
+      ]},
+    ],
+  },
+  {
+    id: 8, short: 'Shackles', title: 'Shackle Use',
+    rule: 'Load a shackle in line with its body, with the pin fully engaged. Use a safety bolt shackle when the load can rotate.',
+    load: { name: 'Steel frame', weight: '1.5 t', key: 'load8', w: 180, h: 80, legs: 2, sling: 0x3aa655,
+            rig: 'Two-leg sling at 60° included. Each leg carries about 0.9 t. The frame can rotate.' },
+    gateX: 2350,
+    ground: [[0, 550], [660, 860], [970, 1300], [1410, 1540], [1650, Infinity]],
+    blocks: [
+      { t: 'c', x: 280, h: 1, c: 0 }, { t: 'b', x: 500, y: 370 }, { t: 'c', x: 700, h: 1, c: 3 }, { t: 'b', x: 820, y: 330 },
+      { t: 'c', x: 1042, h: 1, c: 0 }, { t: 'c', x: 1170, h: 2, c: 1 }, { t: 'b', x: 1290, y: 330 },
+      { t: 'b', x: 1500, y: 360 }, { t: 'c', x: 1760, h: 1, c: 2 }, { t: 'c', x: 1888, h: 2, c: 3 },
+    ],
+    groups: [
+      { id: 'load', title: 'How the shackle takes load', correct: 'l1', options: [
+        { id: 'l1', label: 'In line', sub: 'Pull along the body' },
+        { id: 'l2', label: 'Side-loaded', sub: 'At 90°, full WLL', why: 'A side load reduces the shackle WLL, so load it in line or use the maker’s side-load chart.' },
+        { id: 'l3', label: 'Pin half screwed in', sub: 'Quick to undo', why: 'The pin must be fully screwed in, with its shoulder tight on the body.' },
+      ]},
+      { id: 'type', title: 'Shackle type', correct: 'y1', options: [
+        { id: 'y2', label: 'Screw pin', sub: 'Not moused', why: 'A screw pin can unscrew when the load rotates, so use a safety bolt shackle.' },
+        { id: 'y1', label: 'Safety bolt', sub: 'Bolt, nut and split pin' },
+        { id: 'y3', label: 'Any shackle', sub: 'No WLL marking', why: 'Do not use a shackle that has no WLL marking.' },
+      ]},
+      { id: 'shackle', title: 'Shackle (each leg)', correct: 'k3', options: [
+        { id: 'k1', label: 'Safety bolt', sub: 'WLL 0.5 t', why: 'Each leg carries about 0.9 t, which is more than a 0.5 t shackle can take.' },
+        { id: 'k2', label: 'Safety bolt', sub: 'WLL 0.75 t', why: 'Each leg carries about 0.9 t, which is more than a 0.75 t shackle can take.' },
+        { id: 'k3', label: 'Safety bolt', sub: 'WLL 1 t' },
+      ]},
+    ],
+  },
+  {
+    id: 9, short: 'Zone', title: 'Exclusion Zone',
+    rule: 'Never stand under a suspended load. One person gives the signals, and the lift zone is barricaded.',
+    load: { name: 'Steel column', weight: '2.8 t', key: 'load9', w: 230, h: 40, legs: 2, sling: 0xf2c230,
+            rig: 'The rig is correct and checked. This gate tests where people stand.' },
+    gateX: 2400,
+    ground: [[0, 480], [590, 820], [930, 1120], [1230, 1500], [1610, 1780], [1890, Infinity]],
+    blocks: [
+      { t: 'c', x: 200, h: 1, c: 0 }, { t: 'b', x: 430, y: 370 }, { t: 'c', x: 640, h: 1, c: 1 }, { t: 'b', x: 780, y: 340 },
+      { t: 'c', x: 980, h: 1, c: 2 }, { t: 'b', x: 1080, y: 330 }, { t: 'c', x: 1244, h: 1, c: 3 }, { t: 'c', x: 1372, h: 2, c: 0 },
+      { t: 'b', x: 1500, y: 340 }, { t: 'b', x: 1760, y: 360 }, { t: 'c', x: 1950, h: 1, c: 1 },
+    ],
+    groups: [
+      { id: 'stand', title: 'Where you stand', correct: 'w1', options: [
+        { id: 'w2', label: 'Under the load', sub: 'To guide it down', why: 'Never stand under a suspended load.' },
+        { id: 'w1', label: 'Clear of the path', sub: 'In the operator’s view' },
+        { id: 'w3', label: 'Load and wall', sub: 'Between them', why: 'Never stand where the load can crush you against a fixed object.' },
+      ]},
+      { id: 'signals', title: 'Crane signals', correct: 'g1', options: [
+        { id: 'g1', label: 'One dogman', sub: 'Operator can see or hear them' },
+        { id: 'g2', label: 'Anyone nearby', sub: 'Whoever sees best', why: 'Only one competent person gives signals, so the operator gets no mixed messages.' },
+        { id: 'g3', label: 'Shout from behind', sub: 'Out of the operator’s view', why: 'The operator must see the signaller or hear them on a radio.' },
+      ]},
+      { id: 'zone', title: 'Lift zone', correct: 'z1', options: [
+        { id: 'z2', label: 'No barricade', sub: 'The lift is quick', why: 'Every lift needs a controlled zone, however short the lift is.' },
+        { id: 'z3', label: 'Tape on one side', sub: 'Main walkway only', why: 'Barricade the full drop zone, so no one can walk in from any side.' },
+        { id: 'z1', label: 'Full barricade', sub: 'Around the drop zone' },
+      ]},
+    ],
+  },
+];
+const MAX_SCORE = LEVELS.length * 100;
+
+/* ---------- 2. STATE ---------- */
+const S = { level: 0, score: 0, firstTry: [], mode: 'title' }; // mode: title | play | quiz | done
+const touch = { left: false, right: false, jump: false, jumpQueued: false };
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+let game;
+const yard = () => game && game.scene.getScene('yard');
+
+/* ---------- 2b. SOUND (Web Audio, made in code — no sound files) ---------- */
+const SFX = {
+  ctx: null, master: null, muted: false,
+  init() {
+    if (this.ctx) { if (this.ctx.state === 'suspended') this.ctx.resume(); return; }
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return;
+    this.ctx = new AC();
+    this.master = this.ctx.createGain();
+    this.master.gain.value = 0.35;
+    this.master.connect(this.ctx.destination);
+  },
+  ok() { return this.ctx && !this.muted; },
+  tone(freq, dur, { type = 'square', to = null, vol = 0.2, delay = 0 } = {}) {
+    if (!this.ok()) return;
+    const t = this.ctx.currentTime + delay;
+    const o = this.ctx.createOscillator(), g = this.ctx.createGain();
+    o.type = type;
+    o.frequency.setValueAtTime(freq, t);
+    if (to) o.frequency.exponentialRampToValueAtTime(to, t + dur);
+    g.gain.setValueAtTime(vol, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+    o.connect(g).connect(this.master);
+    o.start(t); o.stop(t + dur + 0.05);
+  },
+  noise(dur, { vol = 0.6, freq = 900, delay = 0 } = {}) {
+    if (!this.ok()) return;
+    const t = this.ctx.currentTime + delay, n = Math.floor(this.ctx.sampleRate * dur);
+    const buf = this.ctx.createBuffer(1, n, this.ctx.sampleRate), d = buf.getChannelData(0);
+    for (let i = 0; i < n; i++) d[i] = Math.random() * 2 - 1;
+    const src = this.ctx.createBufferSource(), f = this.ctx.createBiquadFilter(), g = this.ctx.createGain();
+    src.buffer = buf;
+    f.type = 'lowpass'; f.frequency.setValueAtTime(freq, t); f.frequency.exponentialRampToValueAtTime(80, t + dur);
+    g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+    src.connect(f).connect(g).connect(this.master);
+    src.start(t); src.stop(t + dur + 0.05);
+  },
+  motor(dur) {
+    if (!this.ok()) return;
+    const t = this.ctx.currentTime;
+    const o = this.ctx.createOscillator(), f = this.ctx.createBiquadFilter(), g = this.ctx.createGain();
+    o.type = 'sawtooth';
+    o.frequency.setValueAtTime(48, t); o.frequency.linearRampToValueAtTime(62, t + 0.4);
+    o.frequency.setValueAtTime(62, t + dur - 0.3); o.frequency.linearRampToValueAtTime(44, t + dur);
+    f.type = 'lowpass'; f.frequency.value = 380;
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.14, t + 0.15);
+    g.gain.setValueAtTime(0.14, t + dur - 0.25); g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+    o.connect(f).connect(g).connect(this.master);
+    o.start(t); o.stop(t + dur + 0.05);
+  },
+  jump() { this.tone(300, 0.14, { to: 620, vol: 0.12 }); },
+  fall() { this.tone(420, 0.35, { to: 110, vol: 0.12 }); },
+  whistle() { this.tone(1500, 0.4, { type: 'sine', to: 260, vol: 0.18 }); },
+  crunch() { this.noise(0.5, { vol: 0.9, freq: 1200 }); this.tone(95, 0.4, { to: 38, vol: 0.3 }); this.noise(0.25, { vol: 0.4, freq: 3000, delay: 0.08 }); },
+  clack() { this.tone(180, 0.07, { vol: 0.15 }); this.tone(140, 0.07, { vol: 0.12, delay: 0.09 }); },
+  ding() { this.tone(880, 0.6, { type: 'sine', vol: 0.25 }); this.tone(1320, 0.7, { type: 'sine', vol: 0.14, delay: 0.09 }); },
+  jingle() { [523, 659, 784].forEach((f, i) => this.tone(f, 0.16, { vol: 0.12, delay: i * 0.12 })); this.tone(1047, 0.45, { vol: 0.12, delay: 0.36 }); },
+  fanfare() {
+    [392, 523, 659, 784, 659, 784].forEach((f, i) => this.tone(f, 0.18, { vol: 0.12, delay: i * 0.13 }));
+    this.tone(1047, 0.8, { vol: 0.13, delay: 0.8 }); this.tone(784, 0.8, { type: 'triangle', vol: 0.12, delay: 0.8 });
+  },
+  toggle() {
+    this.muted = !this.muted;
+    const b = $('muteBtn');
+    b.setAttribute('aria-pressed', String(this.muted));
+    b.innerHTML = `Sound <b>${this.muted ? 'off' : 'on'}</b>`;
+  },
+};
+
+/* ---------- 3. UI (DOM) ---------- */
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+function rigSvg({ legs, deg }) {
+  const hx = 32, hy = 6, len = 30, r = (deg * Math.PI) / 180;
+  const dx = Math.sin(r) * len, dy = Math.cos(r) * len;
+  let lines, box;
+  if (legs === 1) {
+    lines = `<line x1="${hx}" y1="${hy}" x2="${hx + dx}" y2="${hy + dy}"/>`;
+    box = `<rect x="${hx + dx - 12}" y="${hy + dy}" width="24" height="7" rx="1"/>`;
+  } else {
+    lines = `<line x1="${hx}" y1="${hy}" x2="${hx - dx}" y2="${hy + dy}"/><line x1="${hx}" y1="${hy}" x2="${hx + dx}" y2="${hy + dy}"/>`;
+    box = `<rect x="${hx - dx - 3}" y="${hy + dy}" width="${2 * dx + 6}" height="7" rx="1"/>`;
+  }
+  return `<svg viewBox="0 0 64 46" aria-hidden="true"><g stroke="currentColor" stroke-width="2.5" stroke-linecap="round" fill="none">${lines}</g><circle cx="${hx}" cy="${hy}" r="3.5" fill="#f5b800"/><g fill="currentColor" opacity=".55">${box}</g></svg>`;
+}
+
+const UI = {
+  hud() {
+    const L = LEVELS[S.level];
+    $('hudLevel').innerHTML = `Level <b>${S.level + 1}</b>/${LEVELS.length} · ${esc(L.short)}`;
+    $('hudScore').textContent = S.score;
+  },
+  open(html) {
+    const p = $('panel');
+    p.innerHTML = html;
+    p.hidden = false;
+    p.scrollTop = 0;
+    const s = yard(); if (s) s.setUiOpen(true);
+  },
+  close() {
+    $('panel').hidden = true;
+    $('panel').innerHTML = '';
+    if (document.activeElement) document.activeElement.blur();
+  },
+  focusFirst(sel) {
+    if (document.body.classList.contains('touch')) return;
+    const el = $('panel').querySelector(sel);
+    if (el) el.focus({ preventScroll: true });
+  },
+
+  title(onStart) {
+    this.open(`
+      <div class="card">
+        <div class="eyebrow">Industrial yard · ${LEVELS.length} lift gates</div>
+        <h1>LIFT GATE</h1>
+        <p>You are the rigger on site. Run the yard, jump the gaps, and rig each load right so the crane can clear the path.</p>
+        <div class="keys">
+          <span><kbd>←</kbd> <kbd>→</kbd> Run</span>
+          <span><kbd>Space</kbd> or <kbd>↑</kbd> Jump</span>
+          <span>On a phone: use the buttons on screen</span>
+        </div>
+        <p class="muted">You get 100 points for each gate that you rig right on the first try.</p>
+        <button class="btn primary" id="startBtn">Start shift</button>
+      </div>`);
+    $('startBtn').addEventListener('click', onStart);
+    this.focusFirst('#startBtn');
+  },
+
+  quiz(L, onSubmit) {
+    const factors = L.factors ? `
+      <table class="factors"><tr><th>Included angle</th><td>60°</td><td>90°</td><td>120°</td></tr>
+      <tr><th>Angle factor</th><td>1.15</td><td>1.41</td><td>2.0</td></tr></table>` : '';
+    const groups = L.groups.map((g) => `
+      <fieldset><legend>${esc(g.title)}</legend><div class="opts">
+        ${g.options.map((o) => `
+          <label class="opt" for="q${L.id}-${g.id}-${o.id}">
+            <input type="radio" name="${g.id}" id="q${L.id}-${g.id}-${o.id}" value="${o.id}">
+            ${o.diagram ? rigSvg(o.diagram) : ''}${o.swatch ? `<i class="sw" style="background:${o.swatch}"></i>` : ''}
+            <span class="ol">${esc(o.label)}</span><span class="os">${esc(o.sub)}</span>
+          </label>`).join('')}
+      </div></fieldset>`).join('');
+    this.open(`
+      <div class="card">
+        <div class="eyebrow">Lift gate ${L.id} of ${LEVELS.length} · ${esc(L.title)}</div>
+        <h2>Rig the load</h2>
+        <div class="loadrow">
+          <div><span class="k">Load</span><b>${esc(L.load.name)}</b></div>
+          <div><span class="k">Weight</span><b class="wt">${esc(L.load.weight)}</b></div>
+          <div class="rig"><span class="k">Rig</span>${esc(L.load.rig)}</div>
+        </div>
+        <p class="rule"><span>Rule</span>${esc(L.rule)}</p>
+        ${factors}
+        <form id="qform" novalidate>
+          ${groups}
+          <button type="submit" class="btn primary" id="liftBtn" disabled>Lift the load</button>
+        </form>
+      </div>`);
+    const form = $('qform');
+    const read = () => Object.fromEntries(L.groups.map((g) => [g.id, (form.querySelector(`input[name="${g.id}"]:checked`) || {}).value]));
+    form.addEventListener('change', () => { $('liftBtn').disabled = Object.values(read()).some((v) => !v); });
+    form.addEventListener('submit', (e) => { e.preventDefault(); const a = read(); if (Object.values(a).some((v) => !v)) return; onSubmit(a); });
+    this.focusFirst('input');
+  },
+
+  fail(L, why, word, onRetry) {
+    const list = L.groups.map((g) => {
+      const o = g.options.find((x) => x.id === g.correct);
+      return `<li><b>${esc(g.title)}:</b> ${esc(o.label)}, ${esc(o.sub)}</li>`;
+    }).join('');
+    this.open(`
+      <div class="card">
+        <div class="eyebrow bad">Load dropped</div>
+        <h2>${esc(word)}</h2>
+        <p class="why">${esc(why)}</p>
+        <div class="correct"><span class="k">Correct rig</span><ul>${list}</ul></div>
+        <button class="btn primary" id="retryBtn">Try again</button>
+      </div>`);
+    $('retryBtn').addEventListener('click', onRetry);
+    this.focusFirst('#retryBtn');
+  },
+
+  levelDone(li, onNext) {
+    const L = LEVELS[li];
+    const first = S.firstTry[li];
+    this.open(`
+      <div class="card">
+        <div class="eyebrow ok">Level ${L.id} complete</div>
+        <h2>${esc(L.title)}: signed off</h2>
+        <p class="rule"><span>Rule</span>${esc(L.rule)}</p>
+        <p>${first ? 'Right on the first try. You get 100 points.' : 'You got it after a drop. No points for this gate.'}</p>
+        <p class="muted">Score: <b style="color:var(--ink)">${S.score}</b> / ${MAX_SCORE}</p>
+        <button class="btn primary" id="nextBtn">Next level</button>
+      </div>`);
+    $('nextBtn').addEventListener('click', onNext);
+    this.focusFirst('#nextBtn');
+  },
+
+  certified(onAgain) {
+    const rules = LEVELS.map((L, i) => `
+      <li><span class="${S.firstTry[i] ? 'tick' : 'miss'}">${S.firstTry[i] ? '✓' : '–'}</span>
+      <span><b>${esc(L.title)}</b></span></li>`).join('');
+    this.open(`
+      <div class="card cert">
+        <div class="seal">OK</div>
+        <div class="eyebrow ok">All ${LEVELS.length} gates clear</div>
+        <h1>CERTIFIED RIGGER</h1>
+        <p class="muted">Game edition. This is not a real licence.</p>
+        <div class="score-big">${S.score} <span class="muted" style="font-size:20px">/ ${MAX_SCORE}</span></div>
+        <p class="muted">A tick shows a gate that you rigged right on the first try.</p>
+        <ul class="rules">${rules}</ul>
+        <button class="btn primary" id="againBtn">Play again</button>
+      </div>`);
+    $('againBtn').addEventListener('click', onAgain);
+    this.focusFirst('#againBtn');
+  },
+};
+
+/* ---------- 4. TEXTURES (original shape art) ---------- */
+function makeTextures(s) {
+  if (s.textures.exists('r_idle')) return;
+  const g = s.make.graphics({ x: 0, y: 0, add: false });
+  const C = Phaser.Display.Color;
+  const dark = (c, n) => C.ValueToColor(c).darken(n).color;
+  const light = (c, n) => C.ValueToColor(c).lighten(n).color;
+
+  // Rigger: hi-vis vest, white hard hat. Faces right.
+  const rigger = (key, pose) => {
+    g.clear();
+    const legs = { idle: [[9, 33, 9], [16, 33, 9]], r1: [[5, 33, 9], [19, 33, 9]], r2: [[11, 33, 9], [14, 33, 9]], jump: [[6, 31, 8], [18, 33, 7]] }[pose];
+    const armBack = pose === 'r2';
+    if (armBack) { g.fillStyle(0xe06510); g.fillRect(5, 20, 4, 9); g.fillStyle(0xf5b800); g.fillRect(5, 29, 4, 3); }
+    legs.forEach(([x, y, h]) => {
+      g.fillStyle(0x2b3a55); g.fillRect(x, y, 5, h);
+      g.fillStyle(0xdfe6ea); g.fillRect(x, y + h - 4, 5, 1.5);
+      g.fillStyle(0x2a2016); g.fillRect(x - 1, y + h, 7, 4);
+    });
+    g.fillStyle(0xff7a1a); g.fillRoundedRect(7, 19, 16, 15, 3);
+    g.fillStyle(0xe8eef2); g.fillRect(7, 25, 16, 2); g.fillRect(7, 30, 16, 2);
+    g.fillStyle(0x2b3a55); g.fillRect(14, 19, 2, 5);
+    if (!armBack) { g.fillStyle(0xe06510); g.fillRect(20, 20, 4, 9); g.fillStyle(0xf5b800); g.fillRect(20, 29, 4, 3); }
+    g.fillStyle(0xd9a066); g.fillRect(9, 10, 13, 10);
+    g.fillStyle(0x1b1b1b); g.fillRect(18, 13, 2, 3);
+    g.fillStyle(0xf4f4ee); g.fillRoundedRect(7, 1, 17, 10, { tl: 8, tr: 8, bl: 0, br: 0 }); g.fillRect(5, 9, 22, 3);
+    g.fillStyle(0xd4d4ca); g.fillRect(14, 2, 3, 7);
+    g.generateTexture(key, 30, 46);
+  };
+  rigger('r_idle', 'idle'); rigger('r_run1', 'r1'); rigger('r_run2', 'r2'); rigger('r_jump', 'jump');
+
+  // Ground: concrete with a hazard edge
+  g.clear();
+  g.fillStyle(0x585d63); g.fillRect(0, 0, 64, 60);
+  g.fillStyle(0xf5b800); g.fillRect(0, 0, 64, 8);
+  g.fillStyle(0x1b1b1b);
+  for (let i = -1; i < 5; i++) g.fillPoints([{ x: i * 16, y: 8 }, { x: i * 16 + 8, y: 8 }, { x: i * 16 + 16, y: 0 }, { x: i * 16 + 8, y: 0 }], true);
+  g.fillStyle(0x3d4146); g.fillRect(0, 8, 64, 2);
+  for (let i = 0; i < 26; i++) { g.fillStyle(i % 2 ? 0x4c5157 : 0x676c73); g.fillRect(Math.random() * 62, 12 + Math.random() * 46, 2, 2); }
+  g.fillStyle(0x4a4f55); g.fillRect(63, 10, 1, 50);
+  g.generateTexture('ground', 64, 60);
+
+  // Shipping containers
+  [0xb5462d, 0x2f7a7e, 0x2d5c9e, 0x6a7d3a].forEach((col, i) => {
+    g.clear();
+    g.fillStyle(col); g.fillRect(0, 0, 128, 64);
+    g.fillStyle(light(col, 8)); for (let x = 6; x < 112; x += 8) g.fillRect(x, 4, 3, 56);
+    g.fillStyle(dark(col, 18)); g.fillRect(0, 0, 128, 4); g.fillRect(0, 60, 128, 4); g.fillRect(0, 0, 4, 64); g.fillRect(124, 0, 4, 64);
+    g.fillStyle(dark(col, 28)); g.fillRect(112, 4, 2, 56); g.fillRect(116, 8, 2, 48); g.fillRect(120, 8, 2, 48);
+    g.fillStyle(0xe8ecef, 0.5); g.fillRect(10, 10, 22, 4);
+    g.generateTexture('cont' + i, 128, 64);
+  });
+
+  // Steel I-beam (one-way platform)
+  g.clear();
+  g.fillStyle(0xa84a24); g.fillRect(0, 0, 128, 18);
+  g.fillStyle(0xc2562b); g.fillRect(0, 0, 128, 4); g.fillRect(0, 14, 128, 4);
+  g.fillStyle(0x5a2a15); [16, 48, 80, 112].forEach((x) => g.fillCircle(x, 9, 3));
+  g.generateTexture('beam', 128, 18);
+
+  // Boom gate arm
+  g.clear();
+  for (let x = 0; x < 140; x += 20) { g.fillStyle((x / 20) % 2 ? 0xe8ecef : 0xd23a3a); g.fillRect(x, 0, 20, 10); }
+  g.generateTexture('boom', 140, 10);
+
+  // Cartoon star
+  g.clear(); g.fillStyle(0xf5b800);
+  const pts = []; for (let i = 0; i < 10; i++) { const r = i % 2 ? 3.2 : 8, a = -Math.PI / 2 + (i * Math.PI) / 5; pts.push({ x: 8 + Math.cos(a) * r, y: 8 + Math.sin(a) * r }); }
+  g.fillPoints(pts, true); g.generateTexture('star', 16, 16);
+
+  // Load 1: steel beam bundle
+  g.clear();
+  for (let i = 0; i < 3; i++) {
+    const y = i * 24;
+    g.fillStyle(0x7d858f); g.fillRect(0, y, 170, 24);
+    g.fillStyle(0x9aa3ad); g.fillRect(0, y, 170, 5); g.fillRect(0, y + 19, 170, 5);
+    g.fillStyle(0x5d646c); g.fillRect(0, y + 11, 170, 2);
+  }
+  g.fillStyle(0x1b1b1b); g.fillRect(34, 0, 5, 72); g.fillRect(131, 0, 5, 72);
+  g.fillStyle(0xf5b800); g.fillRect(79, -0, 12, 6);
+  g.generateTexture('load1', 170, 72);
+
+  // Load 2: pump skid
+  g.clear();
+  g.fillStyle(0x3b3f44); g.fillRect(0, 80, 150, 16);
+  g.fillStyle(0x2a2d31); g.fillRect(0, 80, 150, 3);
+  g.fillStyle(0x3f7a64); g.fillRoundedRect(10, 28, 78, 52, 6);
+  g.fillStyle(0x35684f); for (let x = 16; x < 84; x += 8) g.fillRect(x, 32, 3, 44);
+  g.fillStyle(0x2f5f86); g.fillCircle(115, 54, 26);
+  g.fillStyle(0x264d6c); g.fillCircle(115, 54, 12);
+  g.fillStyle(0x6b7078); g.fillRect(88, 50, 14, 8);
+  g.fillStyle(0xf5b800); g.fillRect(18, 18, 10, 10); g.fillRect(122, 18, 10, 10);
+  g.fillStyle(0x3b3f44); g.fillRect(23, 18, 4, 62); g.fillRect(126, 18, 4, 62);
+  g.generateTexture('load2', 150, 96);
+
+  // Load 3: pipe spool
+  g.clear();
+  g.fillStyle(0x7f8e9b); g.fillRect(8, 14, 204, 36);
+  g.fillStyle(0xa3b1bd); g.fillRect(8, 18, 204, 6);
+  g.fillStyle(0x66737f); g.fillRect(8, 42, 204, 6);
+  g.fillStyle(0x5b6770); g.fillRect(0, 2, 14, 60); g.fillRect(206, 2, 14, 60); g.fillRect(104, 8, 12, 48);
+  g.fillStyle(0x3b4450); [10, 30, 50].forEach((y) => { g.fillCircle(7, y + 2, 2); g.fillCircle(213, y + 2, 2); });
+  g.generateTexture('load3', 220, 64);
+
+  // Load 4: loose pipe bundle
+  g.clear();
+  for (let r = 0; r < 3; r++) {
+    const y = r * 20;
+    g.fillStyle(0x6f7c88); g.fillRect(0, y, 180, 20);
+    g.fillStyle(0x93a1ae); g.fillRect(0, y + 3, 180, 4);
+    g.fillStyle(0x4f5a64); g.fillRect(0, y + 17, 180, 3);
+    g.fillStyle(0x2a3038); g.fillCircle(6, y + 10, 6); g.fillCircle(174, y + 10, 6);
+  }
+  g.generateTexture('load4', 180, 60);
+
+  // Load 5: steel box section with sharp corners
+  g.clear();
+  g.fillStyle(0x4a5058); g.fillRect(0, 0, 150, 70);
+  g.fillStyle(0x6b727b); g.fillRect(0, 0, 150, 6);
+  g.fillStyle(0x3a3f46); g.fillRect(0, 64, 150, 6);
+  g.lineStyle(2, 0x2a2e33); g.strokeRect(12, 14, 126, 42);
+  g.fillStyle(0xe8ecef); g.fillTriangle(0, 0, 10, 0, 0, 10); g.fillTriangle(150, 0, 140, 0, 150, 10);
+  g.generateTexture('load5', 150, 70);
+
+  // Load 6: generator set (heavy engine on the right) with CoG mark
+  g.clear();
+  g.fillStyle(0x3b3f44); g.fillRect(0, 76, 170, 14);
+  g.fillStyle(0x2f6f73); g.fillRect(6, 30, 58, 46);
+  g.fillStyle(0x245659); for (let y = 34; y < 72; y += 6) g.fillRect(10, y, 50, 3);
+  g.fillStyle(0xb5462d); g.fillRoundedRect(66, 14, 98, 62, 5);
+  g.fillStyle(0x8c3522); g.fillRect(80, 24, 70, 8); g.fillRect(80, 40, 70, 8);
+  g.fillStyle(0xf5b800); g.fillRect(8, 22, 8, 8); g.fillRect(154, 6, 8, 8);
+  g.fillStyle(0x14181d); g.fillCircle(115, 56, 11);
+  g.fillStyle(0xf5b800); g.slice(115, 56, 11, 0, Math.PI / 2, false); g.fillPath();
+  g.slice(115, 56, 11, Math.PI, Math.PI * 1.5, false); g.fillPath();
+  g.generateTexture('load6', 170, 90);
+
+  // Load 7: concrete block with cast-in anchor
+  g.clear();
+  g.fillStyle(0x9a9790); g.fillRect(0, 8, 130, 72);
+  g.fillStyle(0x86837c); for (let i = 0; i < 30; i++) g.fillRect(Math.random() * 126, 12 + Math.random() * 64, 3, 2);
+  g.fillStyle(0xb0ada6); g.fillRect(0, 8, 130, 4);
+  g.lineStyle(4, 0x6b7078); g.strokeCircle(65, 6, 6);
+  g.generateTexture('load7', 130, 80);
+
+  // Load 8: steel frame
+  g.clear();
+  g.lineStyle(6, 0x2d5c9e);
+  g.strokeRect(3, 3, 174, 74);
+  g.lineBetween(3, 77, 60, 3); g.lineBetween(60, 3, 120, 77); g.lineBetween(120, 77, 177, 3);
+  g.fillStyle(0xf5b800); g.fillRect(28, 0, 10, 8); g.fillRect(142, 0, 10, 8);
+  g.generateTexture('load8', 180, 80);
+
+  // Load 9: steel column (H-section)
+  g.clear();
+  g.fillStyle(0xa84a24); g.fillRect(0, 0, 230, 40);
+  g.fillStyle(0xc2562b); g.fillRect(0, 0, 230, 7); g.fillRect(0, 33, 230, 7);
+  g.fillStyle(0x8a3c1d); g.fillRect(0, 18, 230, 4);
+  g.fillStyle(0x5a2a15); g.fillRect(0, 0, 8, 40); g.fillRect(222, 0, 8, 40);
+  g.generateTexture('load9', 230, 40);
+
+  // Far skyline: STS cranes and container stacks
+  g.clear(); g.fillStyle(0x1a2734);
+  for (let i = 0; i < 14; i++) { const x = i * 70 + 6, h = 24 + ((i * 37) % 4) * 16; g.fillRect(x, 260 - h, 62, h); }
+  [150, 640].forEach((x) => {
+    g.fillRect(x, 100, 10, 160); g.fillRect(x + 100, 100, 10, 160);
+    g.fillRect(x - 90, 92, 290, 12);
+    g.fillTriangle(x + 55, 30, x + 20, 92, x + 90, 92);
+    g.fillRect(x + 40, 104, 30, 18);
+  });
+  g.fillStyle(0xff4f3a); g.fillCircle(205, 30, 2.5); g.fillCircle(695, 30, 2.5);
+  g.generateTexture('far', 960, 260);
+
+  // Mid layer: sheds and floodlight poles
+  g.clear(); g.fillStyle(0x223140);
+  [[40, 360], [520, 300]].forEach(([x, w]) => {
+    g.fillRect(x, 110, w, 90);
+    for (let k = 0; k < w; k += 60) g.fillTriangle(x + k, 110, x + k + 60, 110, x + k + 60, 80);
+  });
+  [440, 860].forEach((x) => { g.fillRect(x, 20, 4, 180); g.fillRect(x - 12, 18, 28, 6); });
+  g.fillStyle(0xffc766, 0.12); [440, 860].forEach((x) => g.fillCircle(x + 2, 30, 36));
+  g.fillStyle(0xffd88a, 0.95); [440, 860].forEach((x) => g.fillRect(x - 10, 24, 24, 4));
+  g.generateTexture('mid', 960, 200);
+
+  g.destroy();
+
+  s.anims.create({ key: 'run', frames: [{ key: 'r_run1' }, { key: 'r_idle' }, { key: 'r_run2' }, { key: 'r_idle' }], frameRate: 12, repeat: -1 });
+}
+
+/* ---------- 5. SCENE ---------- */
+class YardScene extends Phaser.Scene {
+  constructor() { super('yard'); }
+
+  init(d) {
+    this.li = d && d.level != null ? d.level : S.level;
+    this.L = LEVELS[this.li];
+    this.solved = false; this.busy = false; this.attempts = 0;
+    this.attached = false; this.snapped = false; this.good = false; this.cogShift = 0;
+    this.coyote = 0; this.jumpBuf = 0;
+  }
+
+  create() {
+    makeTextures(this);
+    const L = this.L, gx = L.gateX, W = gx + 1000;
+    this.W = W;
+    this.physics.world.setBounds(0, -200, W, 900);
+    this.physics.world.setBoundsCollision(true, true, false, false);
+    this.cameras.main.setBounds(0, 0, W, 540);
+
+    // Backdrop
+    const sky = this.add.graphics().setScrollFactor(0).setDepth(-10);
+    sky.fillGradientStyle(0x0d1620, 0x0d1620, 0x3a3342, 0x3a3342, 1);
+    sky.fillRect(0, 0, 960, 540);
+    for (let x = 0; x < W * 0.25 + 960; x += 960) this.add.image(x, GY + 6, 'far').setOrigin(0, 1).setScrollFactor(0.25).setDepth(-9);
+    for (let x = 0; x < W * 0.55 + 960; x += 960) this.add.image(x, GY + 6, 'mid').setOrigin(0, 1).setScrollFactor(0.55).setDepth(-8);
+    this.add.rectangle(0, 522, W, 18, 0x080b0f).setOrigin(0).setDepth(1);
+
+    // Ground and platforms
+    this.solids = []; this.oneway = [];
+    this.segments = L.ground.map(([a, b]) => [a, Math.min(b, W)]);
+    this.segments.forEach(([a, b]) => {
+      const t = this.add.tileSprite(a, GY, b - a, 60, 'ground').setOrigin(0, 0).setDepth(5);
+      this.physics.add.existing(t, true); this.solids.push(t);
+    });
+    L.blocks.forEach((bk) => {
+      if (bk.t === 'c') {
+        for (let i = 0; i < bk.h; i++) {
+          const img = this.add.image(bk.x, GY - 64 * (i + 1), 'cont' + bk.c).setOrigin(0, 0).setDepth(4);
+          this.physics.add.existing(img, true); this.solids.push(img);
+        }
+      } else {
+        const img = this.add.image(bk.x, bk.y, 'beam').setOrigin(0, 0).setDepth(4);
+        this.physics.add.existing(img, true);
+        img.body.checkCollision.down = false; img.body.checkCollision.left = false; img.body.checkCollision.right = false;
+        this.oneway.push(img);
+      }
+    });
+
+    // Signs
+    this.sign(70, 330, `LEVEL ${L.id} · ${L.title.toUpperCase()}`, '#f5b800', '#14181d');
+    this.sign(gx - 470, 380, 'LIFT ZONE AHEAD', '#f5b800', '#14181d');
+    this.sign(W - 200, 380, 'SITE EXIT  →', '#2f8f4e', '#ffffff');
+
+    // Crane (static), truck, boom gate
+    this.buildCrane(gx);
+    this.buildTruck(gx);
+    const post = this.add.graphics().setDepth(6);
+    post.fillStyle(0x3b4048); post.fillRect(gx - 176, GY - 90, 14, 90);
+    post.fillStyle(0xf5b800); post.fillRect(gx - 180, GY - 96, 22, 10);
+    this.arm = this.add.image(gx - 169, GY - 80, 'boom').setOrigin(0, 0.5).setDepth(6);
+
+    // Load
+    this.loadC = this.add.container(gx, GY).setDepth(8);
+    const limg = this.add.image(0, 0, L.load.key).setOrigin(0.5, 1);
+    const tag = this.add.text(0, -L.load.h / 2, L.load.weight, {
+      fontFamily: '"Saira Stencil One", Impact, sans-serif', fontSize: '20px', color: '#f5b800',
+      backgroundColor: '#14181dcc', padding: { x: 6, y: 2 },
+    }).setOrigin(0.5);
+    this.loadC.add([limg, tag]);
+
+    // Hook and rope (redrawn each frame)
+    this.crane = { tx: gx, hy: 190 };
+    this.hookG = this.add.graphics().setDepth(9);
+
+    // Player
+    this.player = this.physics.add.sprite(80, GY - 60, 'r_idle').setDepth(10);
+    this.player.body.setSize(16, 42).setOffset(7, 4);
+    this.player.setCollideWorldBounds(true);
+    this.physics.add.collider(this.player, this.solids);
+    this.physics.add.collider(this.player, this.oneway);
+
+    // Gate wall, trigger, exit
+    this.wall = this.add.zone(gx - 150, -200, 24, GY + 200).setOrigin(0, 0);
+    this.physics.add.existing(this.wall, true);
+    this.physics.add.collider(this.player, this.wall);
+    const trig = this.add.zone(gx - 340, GY - 220, 190, 220).setOrigin(0, 0);
+    this.physics.add.existing(trig, true);
+    this.physics.add.overlap(this.player, trig, () => this.onGate());
+    const exit = this.add.zone(W - 120, GY - 220, 60, 220).setOrigin(0, 0);
+    this.physics.add.existing(exit, true);
+    this.physics.add.overlap(this.player, exit, () => this.onExit());
+
+    // Camera and keys
+    const cam = this.cameras.main;
+    cam.startFollow(this.player, true, 0.12, 0.12);
+    cam.setFollowOffset(-140, 0);
+    this.keys = this.input.keyboard.addKeys({ left: 'LEFT', right: 'RIGHT', up: 'UP', space: 'SPACE', a: 'A', d: 'D', w: 'W' });
+
+    this.setUiOpen(S.mode !== 'play');
+    UI.hud();
+  }
+
+  sign(x, y, text, bg, fg) {
+    const g = this.add.graphics().setDepth(2);
+    g.fillStyle(0x3b4048); g.fillRect(x + 20, y, 6, GY - y);
+    this.add.text(x, y - 34, text, {
+      fontFamily: '"Saira Stencil One", Impact, sans-serif', fontSize: '18px', color: fg,
+      backgroundColor: bg, padding: { x: 10, y: 6 },
+    }).setDepth(2);
+  }
+
+  buildCrane(gx) {
+    const c = this.add.graphics().setDepth(1);
+    const m = gx + 760, top = 80, j0 = gx - 220, j1 = m + 140;
+    c.lineStyle(3, 0xf5b800);
+    c.lineBetween(m - 12, top, m - 12, GY); c.lineBetween(m + 12, top, m + 12, GY);
+    for (let y = top + 16; y < GY; y += 24) { c.lineBetween(m - 12, y, m + 12, y + 24); c.lineBetween(m - 12, y + 24, m + 12, y + 24); }
+    c.lineBetween(j0, top, j1, top); c.lineBetween(j0, top + 16, j1, top + 16);
+    for (let x = j0; x < j1; x += 20) { c.lineBetween(x, top + 16, x + 10, top); c.lineBetween(x + 10, top, x + 20, top + 16); }
+    c.lineBetween(m - 8, top, m, top - 50); c.lineBetween(m + 8, top, m, top - 50);
+    c.lineStyle(1.5, 0x9aa7b4);
+    c.lineBetween(m, top - 50, j0 + 140, top); c.lineBetween(m, top - 50, j1 - 10, top);
+    c.fillStyle(0x6b7078); c.fillRect(m + 70, top + 16, 60, 34);
+    c.fillStyle(0xf5b800); c.fillRect(m - 42, top + 16, 30, 26);
+    c.fillStyle(0x9fc3d9); c.fillRect(m - 38, top + 20, 16, 12);
+    c.fillStyle(0x3b4048); c.fillRect(m - 30, GY - 16, 60, 16);
+  }
+
+  buildTruck(gx) {
+    const t = this.add.graphics().setDepth(2);
+    const a = gx + 290, b = gx + 560;
+    t.fillStyle(0x2c3137); t.fillRect(a, 440, b - a, 14);
+    t.fillStyle(0x3b4048); t.fillRect(a, 454, b - a, 6);
+    t.fillStyle(0x2d5c9e); t.fillRoundedRect(b + 4, 392, 72, 64, 6);
+    t.fillStyle(0x9fc3d9); t.fillRect(b + 42, 400, 26, 20);
+    t.fillStyle(0xf5b800); t.fillRect(b + 20, 386, 16, 6);
+    [a + 40, a + 76, b - 50, b + 44].forEach((x) => {
+      t.fillStyle(0x151a1f); t.fillCircle(x, 466, 14);
+      t.fillStyle(0x6b7078); t.fillCircle(x, 466, 5);
+    });
+  }
+
+  setUiOpen(open) {
+    const kb = this.input.keyboard;
+    if (!kb) return;
+    if (open) kb.disableGlobalCapture(); else kb.enableGlobalCapture();
+    kb.resetKeys();
+  }
+
+  tw(cfg) { return new Promise((r) => this.tweens.add({ ...cfg, onComplete: () => r() })); }
+  wait(ms) { return new Promise((r) => this.time.delayedCall(ms, r)); }
+
+  float(x, y, text, color) {
+    const t = this.add.text(x, y, text, {
+      fontFamily: '"Saira Stencil One", Impact, sans-serif', fontSize: '28px', color,
+      stroke: '#0f141a', strokeThickness: 6,
+    }).setOrigin(0.5).setDepth(20);
+    this.tweens.add({ targets: t, y: y - 60, alpha: 0, duration: 1400, ease: 'Quad.easeOut', onComplete: () => t.destroy() });
+  }
+
+  /* --- Gate flow --- */
+  onGate() {
+    if (S.mode !== 'play' || this.solved || this.busy) return;
+    S.mode = 'quiz';
+    this.physics.pause();
+    this.player.anims.stop(); this.player.setTexture('r_idle');
+    UI.quiz(this.L, (a) => this.resolve(a));
+  }
+
+  async resolve(ans) {
+    if (this.busy) return;
+    this.busy = true;
+    UI.close();
+    this.snapped = false; this.good = false; this.cogShift = 0;
+    const L = this.L;
+    const wrong = L.groups.find((g) => ans[g.id] !== g.correct);
+    if (!wrong) {
+      const first = this.attempts === 0;
+      if (first) S.score += 100;
+      S.firstTry[this.li] = first;
+      UI.hud();
+      await this.liftLoad();
+      this.solved = true;
+      this.float(this.player.x, this.player.y - 40, first ? '+100' : 'GATE OPEN', first ? '#43b86b' : '#f5b800');
+      this.busy = false;
+      S.mode = 'play';
+      this.physics.resume();
+      this.setUiOpen(false);
+    } else {
+      this.attempts++;
+      const word = ['CRUNCH!', 'KA-BLAM!', 'THUD!'][(this.attempts - 1) % 3];
+      await this.dropLoad(word);
+      this.busy = false;
+      const opt = wrong.options.find((o) => o.id === ans[wrong.id]);
+      UI.fail(L, opt.why, word, () => UI.quiz(L, (a) => this.resolve(a)));
+    }
+  }
+
+  async liftLoad() {
+    const L = this.L, h = L.load.h, c = this.crane, gx = L.gateX;
+    const attachHy = GY - h - SL - 30;
+    this.good = true;
+    SFX.motor(5.6);
+    if (L.load.cog) {
+      this.cogShift = L.load.cog;
+      await this.tw({ targets: c, tx: gx + L.load.cog, duration: 350, ease: 'Sine.easeInOut' });
+    }
+    await this.tw({ targets: c, hy: attachHy, duration: 650, ease: 'Sine.easeInOut' });
+    SFX.clack();
+    this.attached = true;
+    await this.tw({ targets: c, hy: 120, duration: 1100, ease: 'Sine.easeInOut' });
+    await this.tw({ targets: c, tx: gx + 425 + this.cogShift, duration: 1500, ease: 'Sine.easeInOut' });
+    await this.tw({ targets: c, hy: 440 - h - SL - 30, duration: 900, ease: 'Sine.easeInOut' });
+    SFX.clack();
+    this.attached = false;
+    await this.tw({ targets: c, hy: 190, duration: 500, ease: 'Sine.easeOut' });
+    this.wall.body.enable = false;
+    SFX.ding();
+    await this.tw({ targets: this.arm, angle: -85, duration: 600, ease: 'Back.easeOut' });
+  }
+
+  async dropLoad(word) {
+    const L = this.L, h = L.load.h, c = this.crane, lc = this.loadC;
+    const attachHy = GY - h - SL - 30;
+    SFX.motor(1.6);
+    await this.tw({ targets: c, hy: attachHy, duration: 600, ease: 'Sine.easeInOut' });
+    SFX.clack();
+    this.attached = true;
+    await this.tw({ targets: c, hy: attachHy - 120, duration: 900, ease: 'Sine.easeInOut' });
+    await this.tw({ targets: c, tx: c.tx + 7, duration: 70, yoyo: true, repeat: 3 });
+    SFX.whistle();
+    this.attached = false; this.snapped = true;
+    this.tweens.add({ targets: c, hy: attachHy - 190, duration: 500, ease: 'Back.easeOut' });
+    this.tweens.add({ targets: lc, angle: 9, duration: 360, ease: 'Quad.easeIn' });
+    await this.tw({ targets: lc, y: GY, duration: 360, ease: 'Quad.easeIn' });
+    this.crash(lc.x, L.load.w, h, word);
+    this.tweens.add({ targets: lc, angle: 0, duration: 300, ease: 'Back.easeOut' });
+    await this.tw({ targets: lc, y: GY - 16, duration: 130, yoyo: true, ease: 'Quad.easeOut' });
+    lc.y = GY;
+    await this.wait(1000);
+    this.tweens.add({ targets: c, hy: 190, duration: 500 });
+    await this.wait(250);
+  }
+
+  crash(x, w, h, word) {
+    SFX.crunch();
+    if (!reduceMotion) this.cameras.main.shake(260, 0.012);
+    for (let i = 0; i < 12; i++) {
+      const dir = i % 2 ? 1 : -1;
+      const p = this.add.circle(x + dir * (w / 2 - 10), GY - 6, 8 + Math.random() * 8, 0x8a8f96, 0.8).setDepth(11);
+      this.tweens.add({ targets: p, x: p.x + dir * (30 + Math.random() * 70), y: p.y - Math.random() * 40, scale: 2, alpha: 0, duration: 700 + Math.random() * 300, onComplete: () => p.destroy() });
+    }
+    const cy = GY - h - 16;
+    const stars = [0, 1, 2].map(() => this.add.image(x, cy, 'star').setDepth(12));
+    this.tweens.addCounter({
+      from: 0, to: 1, duration: 1500,
+      onUpdate: (t) => { const v = t.getValue(); stars.forEach((s, i) => { const a = v * Math.PI * 5 + i * 2.09; s.setPosition(x + Math.cos(a) * 44, cy + Math.sin(a) * 10); }); },
+      onComplete: () => stars.forEach((s) => s.destroy()),
+    });
+    const t = this.add.text(x, cy - 50, word, {
+      fontFamily: '"Saira Stencil One", Impact, sans-serif', fontSize: '52px', color: '#f5b800',
+      stroke: '#0f141a', strokeThickness: 10,
+    }).setOrigin(0.5).setDepth(20).setScale(0.2).setAngle(-6);
+    this.tweens.add({ targets: t, scale: 1, duration: 280, ease: 'Back.easeOut' });
+    this.tweens.add({ targets: t, alpha: 0, delay: 1000, duration: 300, onComplete: () => t.destroy() });
+  }
+
+  onExit() {
+    if (!this.solved || S.mode !== 'play') return;
+    S.mode = 'done';
+    this.physics.pause();
+    this.player.anims.stop(); this.player.setTexture('r_idle');
+    if (this.li === LEVELS.length - 1) { SFX.fanfare(); UI.certified(restartAll); }
+    else { SFX.jingle(); UI.levelDone(this.li, () => goLevel(this.li + 1)); }
+  }
+
+  respawn() {
+    const p = this.player;
+    let x = 60;
+    this.segments.forEach(([a]) => { if (a < p.x) x = a + 40; });
+    SFX.fall();
+    p.setPosition(x, GY - 60); p.setVelocity(0, 0);
+    this.tweens.add({ targets: p, alpha: 0.2, duration: 90, yoyo: true, repeat: 3 });
+  }
+
+  drawCrane() {
+    const g = this.hookG, c = this.crane, L = this.L;
+    if (this.attached) { this.loadC.x = c.tx - this.cogShift; this.loadC.y = c.hy + 30 + SL + L.load.h; }
+    g.clear();
+    g.fillStyle(0x2a2f36); g.fillRect(c.tx - 14, 96, 28, 10);
+    g.lineStyle(2, 0x151a1f); g.lineBetween(c.tx - 4, 106, c.tx - 4, c.hy); g.lineBetween(c.tx + 4, 106, c.tx + 4, c.hy);
+    g.fillStyle(0xf5b800); g.fillRect(c.tx - 11, c.hy, 22, 16);
+    g.fillStyle(0x151a1f); g.fillRect(c.tx - 11, c.hy + 6, 22, 3);
+    g.lineStyle(4, 0x3a4048); g.beginPath(); g.arc(c.tx, c.hy + 22, 6, 0, Math.PI, false); g.strokePath();
+    const hb = c.hy + 28;
+    if (this.attached) {
+      const lc = this.loadC, top = lc.y - L.load.h;
+      g.lineStyle(4, L.load.sling);
+      if (L.load.legs === 1) g.lineBetween(c.tx, hb, lc.x, top);
+      else { const dx = L.load.w * 0.36; g.lineBetween(c.tx, hb, lc.x - dx, top); g.lineBetween(c.tx, hb, lc.x + dx, top); }
+      if (L.id === 3 && this.good) {
+        const ex = lc.x - L.load.w / 2 + 6, ey = lc.y - L.load.h / 2;
+        g.lineStyle(2, 0xe8d9b0); g.lineBetween(ex, ey, ex - 60, Math.min(GY - 4, ey + 150));
+      }
+      if (L.load.sleeves && this.good && L.load.legs === 2) {
+        const dx = L.load.w * 0.36;
+        g.fillStyle(0x14181d); g.fillRect(lc.x - dx - 8, top - 4, 16, 10); g.fillRect(lc.x + dx - 8, top - 4, 16, 10);
+      }
+    } else if (this.snapped) {
+      g.lineStyle(4, L.load.sling);
+      g.lineBetween(c.tx, hb, c.tx - 8, hb + 18); g.lineBetween(c.tx, hb, c.tx + 10, hb + 14);
+    }
+  }
+
+  update(t, dt) {
+    this.drawCrane();
+    if (S.mode !== 'play') return;
+    const p = this.player, b = p.body, k = this.keys, JD = Phaser.Input.Keyboard.JustDown;
+    const left = k.left.isDown || k.a.isDown || touch.left;
+    const right = k.right.isDown || k.d.isDown || touch.right;
+    const onGround = b.blocked.down || b.touching.down;
+    this.coyote = onGround ? 100 : this.coyote - dt;
+    const hit = JD(k.space) || JD(k.up) || JD(k.w) || touch.jumpQueued;
+    touch.jumpQueued = false;
+    this.jumpBuf = hit ? 120 : this.jumpBuf - dt;
+    if (this.jumpBuf > 0 && this.coyote > 0) { p.setVelocityY(-640); this.jumpBuf = 0; this.coyote = 0; SFX.jump(); }
+    const held = k.space.isDown || k.up.isDown || k.w.isDown || touch.jump;
+    if (!held && b.velocity.y < -260) p.setVelocityY(-260);
+
+    const vx = (right ? 1 : 0) - (left ? 1 : 0);
+    p.setVelocityX(vx * 240);
+    if (vx) p.setFlipX(vx < 0);
+    if (!onGround) { p.anims.stop(); p.setTexture('r_jump'); }
+    else if (vx) p.anims.play('run', true);
+    else { p.anims.stop(); p.setTexture('r_idle'); }
+
+    if (p.y > 600) this.respawn();
+  }
+}
+
+/* ---------- FLOW ---------- */
+function goLevel(n) {
+  S.level = n;
+  S.mode = 'play';
+  UI.close();
+  UI.hud();
+  yard().scene.restart({ level: n });
+}
+function restartAll() {
+  S.score = 0; S.firstTry = [];
+  goLevel(0);
+}
+
+/* ---------- TOUCH ---------- */
+function bindHold(el, key) {
+  const on = (e) => { e.preventDefault(); touch[key] = true; if (key === 'jump') touch.jumpQueued = true; el.classList.add('on'); };
+  const off = () => { touch[key] = false; el.classList.remove('on'); };
+  el.addEventListener('pointerdown', on);
+  ['pointerup', 'pointercancel', 'pointerleave'].forEach((t) => el.addEventListener(t, off));
+  el.addEventListener('contextmenu', (e) => e.preventDefault());
+}
+if (matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 0) document.body.classList.add('touch');
+bindHold($('tLeft'), 'left'); bindHold($('tRight'), 'right'); bindHold($('tJump'), 'jump');
+
+/* ---------- SOUND WIRING ---------- */
+// Browsers allow audio only after a tap or key press.
+['pointerdown', 'keydown'].forEach((t) => document.addEventListener(t, () => SFX.init(), { passive: true }));
+$('muteBtn').addEventListener('click', (e) => { SFX.init(); SFX.toggle(); e.currentTarget.blur(); });
+document.addEventListener('keydown', (e) => { if ((e.key === 'm' || e.key === 'M') && !e.repeat) SFX.toggle(); });
+
+/* ---------- BOOT ---------- */
+function start(data) {
+  if (data && Number.isInteger(data.level)) { S.level = data.level; S.score = data.score || 0; S.firstTry = data.firstTry || []; }
+  const fontsReady = Promise.race([
+    Promise.all([document.fonts.load('20px "Saira Stencil One"'), document.fonts.load('15px "Chakra Petch"')]),
+    new Promise((r) => setTimeout(r, 2500)),
+  ]).catch(() => {});
+  fontsReady.then(() => {
+    game = new Phaser.Game({
+      type: Phaser.AUTO,
+      parent: 'game',
+      width: 960, height: 540,
+      backgroundColor: '#0d1620',
+      physics: { default: 'arcade', arcade: { gravity: { y: 1500 }, debug: false } },
+      scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
+      render: { roundPixels: true },
+      scene: [YardScene],
+    });
+    S.mode = 'title';
+    UI.hud();
+    UI.title(() => { S.mode = 'play'; UI.close(); const s = yard(); if (s) s.setUiOpen(false); });
+  });
+}
+try { window.claude?.hot?.snapshot?.(() => ({ level: S.level, score: S.score, firstTry: S.firstTry })); } catch (e) {}
+window.claude?.hot?.ready ? window.claude.hot.ready(start) : start(window.claude?.hot?.data ?? {});
+</script>
+
+</body>
+</html>
